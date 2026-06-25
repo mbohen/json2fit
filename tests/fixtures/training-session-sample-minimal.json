@@ -1,0 +1,17 @@
+{
+  "id": "synthetic-minimal-001",
+  "sport": "RUNNING",
+  "startTime": "2024-05-01T10:00:00Z",
+  "durationSeconds": 600,
+  "distanceMeters": 1200,
+  "samples": [
+    {
+      "secondsFromStart": 0,
+      "distanceMeters": 0
+    },
+    {
+      "secondsFromStart": 600,
+      "distanceMeters": 1200
+    }
+  ]
+}

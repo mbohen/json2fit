@@ -1,0 +1,25 @@
+{
+  "id": "synthetic-no-gps-001",
+  "sport": "TREADMILL_RUNNING",
+  "startTime": "2024-05-03T18:15:00Z",
+  "duration": "00:30:00",
+  "distanceMeters": 5000,
+  "calories": 310,
+  "samples": [
+    {
+      "secondsFromStart": 0,
+      "distanceMeters": 0,
+      "heartRate": 112
+    },
+    {
+      "secondsFromStart": 900,
+      "distanceMeters": 2500,
+      "heartRate": 138
+    },
+    {
+      "secondsFromStart": 1800,
+      "distanceMeters": 5000,
+      "heartRate": 151
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "json2fit Polar Flow to Garmin Connect",
+  "short_name": "json2fit",
+  "description": "Lokalne narzędzie do migracji danych z Polar Flow do Garmin Connect.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f7f7f2",
+  "theme_color": "#1f6f61",
+  "lang": "pl",
+  "icons": [
+    {
+      "src": "assets/icons/json2fit-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

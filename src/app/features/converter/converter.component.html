@@ -1,0 +1,1298 @@
+<main class="min-h-screen overflow-x-hidden">
+  <div class="mx-auto grid min-w-0 max-w-7xl gap-6 px-4 py-6 sm:px-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <section class="min-w-0 space-y-6">
+      <div
+        class="flex min-h-56 min-w-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-pine bg-white px-4 py-8 text-center sm:px-5"
+        (drop)="onDrop($event)"
+        (dragover)="onDragOver($event)"
+      >
+        <svg lucideUploadCloud class="text-pine" [size]="40"></svg>
+        <h2 class="mt-4 text-xl font-semibold text-ink">{{ 'converter.uploadTitle' | t }}</h2>
+        <p class="mt-2 max-w-2xl text-sm text-slate-600">
+          {{ 'converter.uploadLead' | t }}
+        </p>
+        <p class="mt-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900">
+          {{ 'converter.privacyBadge' | t }}
+        </p>
+        <div class="mt-3 flex flex-wrap justify-center gap-3 text-sm" data-testid="import-help-links">
+          <app-help-link section="download-polar-export"></app-help-link>
+          <a
+            class="font-semibold text-pine underline decoration-dotted underline-offset-4 hover:text-emerald-800"
+            routerLink="/help"
+            fragment="import-files"
+          >
+            {{ 'converter.importHelp' | t }}
+          </a>
+        </div>
+        <div class="mt-5 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
+          <label class="tool-button tool-button-primary w-full cursor-pointer sm:w-auto">
+            <svg lucideFileArchive [size]="18"></svg>
+            <span>{{ 'converter.chooseZip' | t }}</span>
+            <input
+              class="sr-only"
+              type="file"
+              accept=".zip,application/zip,application/x-zip-compressed"
+              (change)="onFileInput($event)"
+            />
+          </label>
+          <label class="tool-button tool-button-primary w-full cursor-pointer sm:w-auto">
+            <svg lucideFileJson [size]="18"></svg>
+            <span>{{ 'converter.chooseJson' | t }}</span>
+            <input class="sr-only" type="file" accept=".json,application/json" multiple (change)="onFileInput($event)" />
+          </label>
+          <label class="tool-button tool-button-secondary w-full cursor-pointer sm:w-auto">
+            <svg lucideFolderOpen [size]="18"></svg>
+            <span>{{ 'converter.chooseDirectory' | t }}</span>
+            <input
+              class="sr-only"
+              type="file"
+              multiple
+              webkitdirectory
+              directory
+              (change)="onFileInput($event)"
+            />
+          </label>
+        </div>
+
+        <div *ngIf="store.importProgress() as progress" class="mt-6 w-full max-w-2xl text-left">
+          <div class="flex items-center justify-between gap-3 text-sm">
+            <span class="font-semibold text-ink">{{ importStageLabel(progress.stage) }}</span>
+            <span class="text-slate-600">{{ progress.processedFiles }} / {{ progress.totalFiles }}</span>
+          </div>
+          <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div
+              class="h-full rounded-full bg-pine transition-all"
+              [class.animate-pulse]="isImportProgressStarting(progress)"
+              [style.width.%]="importProgressPercent()"
+              data-testid="import-progress-fill"
+            ></div>
+          </div>
+          <p
+            *ngIf="importProgressDetail(progress) as progressDetail"
+            class="mt-2 text-xs"
+            [ngClass]="progress.stage === 'error' ? 'text-red-700' : 'text-slate-600'"
+          >
+            {{ progressDetail }}
+          </p>
+          <button
+            *ngIf="progress.currentPath"
+            class="mt-2 max-w-full break-all text-left text-xs text-slate-500 underline decoration-dotted underline-offset-2"
+            type="button"
+            [attr.title]="progress.currentPath"
+            [attr.aria-label]="filePathToggleLabel(progress.currentPath)"
+            [attr.aria-expanded]="filePathExpanded(progress.currentPath)"
+            (click)="toggleFilePath(progress.currentPath)"
+          >
+            {{ displayFilePath(progress.currentPath) }}
+          </button>
+        </div>
+      </div>
+
+      <section *ngIf="store.importedPolarFiles().length" class="min-w-0 rounded-lg border border-line bg-white">
+        <div class="flex min-w-0 flex-col gap-3 border-b border-line px-4 py-4 md:flex-row md:items-center md:justify-between">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">{{ 'converter.importedFilesTitle' | t }}</h2>
+            <button
+              *ngIf="store.importedZipFilename() as zipFilename"
+              class="mt-1 max-w-full break-all text-left text-sm text-slate-600 underline decoration-dotted underline-offset-2"
+              type="button"
+              [attr.title]="zipFilename"
+              [attr.aria-label]="filePathToggleLabel(zipFilename)"
+              [attr.aria-expanded]="filePathExpanded(zipFilename)"
+              (click)="toggleFilePath(zipFilename)"
+            >
+              <span class="md:hidden" data-testid="zip-archive-name-mobile">{{ displayFilePath(zipFilename) }}</span>
+              <span class="hidden md:inline" data-testid="zip-archive-name-desktop">{{ displayFilePath(zipFilename, 50) }}</span>
+            </button>
+          </div>
+          <dl class="grid grid-cols-3 gap-3 text-center text-sm">
+            <div>
+              <dt class="text-slate-500">JSON</dt>
+              <dd class="font-semibold text-ink">{{ store.importedJsonCount() }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">{{ 'converter.ignoredFiles' | t }}</dt>
+              <dd class="font-semibold text-ink">{{ store.ignoredImportCount() }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">{{ 'converter.otherFiles' | t }}</dt>
+              <dd class="font-semibold text-ink">{{ store.unsupportedImportCount() }}</dd>
+            </div>
+          </dl>
+        </div>
+        <div class="max-h-80 overflow-y-auto divide-y divide-line">
+          <article *ngFor="let file of store.importedPolarFiles(); trackBy: trackByImportedPath" class="grid gap-2 px-4 py-3 text-sm md:grid-cols-[minmax(0,1fr)_120px_90px] md:items-center">
+            <div class="min-w-0">
+              <button
+                class="max-w-full break-all text-left font-medium text-ink underline decoration-dotted underline-offset-2"
+                type="button"
+                [attr.title]="file.path"
+                [attr.aria-label]="filePathToggleLabel(file.path)"
+                [attr.aria-expanded]="filePathExpanded(file.path)"
+                (click)="toggleFilePath(file.path)"
+              >
+                <span class="md:hidden" data-testid="zip-file-path-mobile">{{ displayFilePath(file.path) }}</span>
+                <span class="hidden md:inline" data-testid="zip-file-path-desktop">{{ displayFilePath(file.path, 50) }}</span>
+              </button>
+              <p *ngIf="file.parseError" class="mt-1 break-words text-xs text-amber-700">{{ file.parseError }}</p>
+            </div>
+            <span class="status-pill w-fit" [ngClass]="{
+              'bg-emerald-100 text-emerald-900': file.kind === 'json' && !file.parseError,
+              'bg-amber-100 text-amber-900': file.kind === 'json' && file.parseError,
+              'bg-slate-100 text-slate-700': file.kind !== 'json'
+            }">
+              {{ importedKindLabel(file.kind) }}
+            </span>
+            <span class="text-slate-500 md:text-right">{{ formatBytes(file.sizeBytes) }}</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="min-w-0 rounded-lg border border-line bg-white">
+        <div class="flex min-w-0 flex-col gap-3 border-b border-line px-4 py-4 md:flex-row md:items-center md:justify-between">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">{{ 'converter.classificationTitle' | t }}</h2>
+            <p class="break-words text-sm text-slate-600">{{ store.message() }}</p>
+            <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+              <app-term-tooltip term="FIT">FIT</app-term-tooltip> {{ 'converter.fitLocalExperimental' | t }}
+            </p>
+            <p class="mt-2 text-sm"><app-help-link section="tcx-vs-fit"></app-help-link></p>
+          </div>
+          <ng-template #classificationActions>
+            <button
+              class="tool-button tool-button-primary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.readyToConvert().length || store.busy()"
+              (click)="store.exportAllReadyTcx()"
+            >
+              <svg *ngIf="store.importedZipFilename(); else allTcxIcon" lucideFileArchive [size]="18"></svg>
+              <ng-template #allTcxIcon><svg lucideFileCode2 [size]="18"></svg></ng-template>
+              <span>{{ 'converter.allTcx' | t }}</span>
+            </button>
+            <button
+              class="tool-button tool-button-secondary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.readyToConvert().length || store.busy()"
+              (click)="store.exportAllReadyFit()"
+            >
+              <svg *ngIf="store.importedZipFilename(); else allFitIcon" lucideFileArchive [size]="18"></svg>
+              <ng-template #allFitIcon><svg lucideActivitySquare [size]="18"></svg></ng-template>
+              <span>{{ 'converter.allFit' | t }}</span>
+            </button>
+            <button
+              class="tool-button tool-button-secondary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.readyToConvert().length || store.busy()"
+              (click)="store.exportAllReadyGarminBundle()"
+            >
+              <svg *ngIf="store.importedZipFilename(); else allBundleIcon" lucideFileArchive [size]="18"></svg>
+              <ng-template #allBundleIcon><svg lucideFiles [size]="18"></svg></ng-template>
+              <span>{{ 'converter.allTcxFit' | t }}</span>
+            </button>
+            <button
+              class="tool-button tool-button-secondary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.classificationReport().length || store.busy()"
+              (click)="store.exportClassificationReportCsv()"
+            >
+              <svg lucideFileCode2 [size]="18"></svg>
+              <span>{{ 'converter.reportCsv' | t }}</span>
+            </button>
+            <button
+              class="tool-button tool-button-secondary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.classificationReport().length || store.busy()"
+              (click)="store.exportClassificationReportJson()"
+            >
+              <svg lucideFileJson [size]="18"></svg>
+              <span>{{ 'converter.reportJson' | t }}</span>
+            </button>
+            <button
+              class="tool-button tool-button-secondary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.garminReadyReport().length || store.busy()"
+              (click)="store.exportGarminReadyReportCsv()"
+            >
+              <svg lucideShieldCheck [size]="18"></svg>
+              <span>{{ 'converter.garminCsv' | t }}</span>
+            </button>
+            <button
+              class="tool-button tool-button-secondary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.garminReadyReport().length || store.busy()"
+              (click)="store.exportGarminReadyReportJson()"
+            >
+              <svg lucideFileJson [size]="18"></svg>
+              <span>{{ 'converter.garminJson' | t }}</span>
+            </button>
+          </ng-template>
+
+          <details class="w-full md:hidden" data-testid="classification-actions-menu">
+            <summary class="tool-button tool-button-secondary w-full cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+              <svg lucideFileArchive [size]="18"></svg>
+              <span>{{ 'converter.exportReports' | t }}</span>
+              <svg lucideChevronDown class="ml-auto shrink-0" [size]="16"></svg>
+            </summary>
+            <div class="mt-2 grid gap-2 rounded-md border border-line bg-slate-50 p-2">
+              <ng-container *ngTemplateOutlet="classificationActions"></ng-container>
+            </div>
+          </details>
+
+          <div class="hidden w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap md:flex md:w-auto md:justify-end" data-testid="classification-actions-desktop">
+            <ng-container *ngTemplateOutlet="classificationActions"></ng-container>
+          </div>
+        </div>
+
+        <div class="border-b border-line" data-testid="classification-summary-table">
+          <div class="divide-y divide-line md:hidden" data-testid="classification-summary-mobile-list">
+            <ng-container *ngFor="let item of store.classificationSummary(); trackBy: trackByCategorySummary">
+              <article *ngIf="item.count > 0" class="grid min-w-0 gap-3 px-4 py-3 text-sm">
+                <div class="flex min-w-0 items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold uppercase text-slate-500">{{ 'converter.category' | t }}</p>
+                    <h3 class="mt-1 break-words font-semibold text-ink">{{ item.label }}</h3>
+                  </div>
+                  <div class="shrink-0 text-right">
+                    <p class="text-xs font-semibold uppercase text-slate-500">{{ 'converter.count' | t }}</p>
+                    <p class="mt-1 text-lg font-semibold text-ink">{{ item.count }}</p>
+                  </div>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold uppercase text-slate-500">{{ 'converter.action' | t }}</p>
+                  <p class="mt-1 break-words text-slate-700">{{ item.action }}</p>
+                </div>
+              </article>
+            </ng-container>
+            <p *ngIf="!store.classificationReport().length" class="px-4 py-4 text-sm text-slate-500">
+              {{ 'converter.noCategories' | t }}
+            </p>
+          </div>
+
+          <div class="hidden overflow-x-auto p-4 md:block">
+            <table class="min-w-[640px] table-fixed divide-y divide-line text-sm xl:min-w-full">
+              <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                <tr>
+                  <th class="w-[38%] px-4 py-3">{{ 'converter.category' | t }}</th>
+                  <th class="w-[18%] px-4 py-3 text-right">{{ 'converter.fileCount' | t }}</th>
+                  <th class="w-[44%] px-4 py-3">{{ 'converter.action' | t }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line">
+                <tr *ngFor="let item of store.classificationSummary(); trackBy: trackByCategorySummary">
+                  <td class="px-4 py-3 font-medium text-ink">{{ item.label }}</td>
+                  <td class="px-4 py-3 text-right font-semibold">{{ item.count }}</td>
+                  <td class="px-4 py-3 text-slate-600">{{ item.action }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="hidden max-h-96 overflow-auto md:block" data-testid="classification-table">
+          <table class="min-w-[1180px] table-fixed divide-y divide-line text-sm xl:min-w-full">
+            <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <tr>
+                <th class="w-[22%] px-4 py-3">{{ 'converter.path' | t }}</th>
+                <th class="w-[13%] px-4 py-3">{{ 'converter.category' | t }}</th>
+                <th class="w-[9%] px-4 py-3">{{ 'converter.confidence' | t }}</th>
+                <th class="w-[21%] px-4 py-3">{{ 'converter.reason' | t }}</th>
+                <th class="w-[17%] px-4 py-3">{{ 'converter.warnings' | t }}</th>
+                <th class="w-[10%] px-4 py-3">{{ 'converter.keys' | t }}</th>
+                <th class="w-[8%] px-4 py-3 text-center">{{ 'converter.action' | t }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-line">
+              <tr *ngFor="let item of store.classificationReport(); trackBy: trackByReportPath">
+                <td class="px-4 py-3 font-medium text-ink">
+                  <button
+                    class="block max-w-full break-all text-left font-semibold text-ink underline decoration-dotted underline-offset-2"
+                    type="button"
+                    [attr.title]="item.path"
+                    [attr.aria-label]="filePathToggleLabel(item.path)"
+                    [attr.aria-expanded]="filePathExpanded(item.path)"
+                    (click)="toggleFilePath(item.path)"
+                  >
+                    {{ displayFilePath(item.path) }}
+                  </button>
+                  <button
+                    *ngIf="item.filename !== item.path"
+                    class="mt-1 max-w-full break-all text-left text-xs font-normal text-slate-500 underline decoration-dotted underline-offset-2"
+                    type="button"
+                    [attr.title]="item.filename"
+                    [attr.aria-label]="filePathToggleLabel(item.filename)"
+                    [attr.aria-expanded]="filePathExpanded(item.filename)"
+                    (click)="toggleFilePath(item.filename)"
+                  >
+                    {{ displayFilePath(item.filename) }}
+                  </button>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="block break-words">{{ categoryLabel(item.category) }}</span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="status-pill" [ngClass]="{
+                    'bg-emerald-100 text-emerald-900': item.confidence === 'high',
+                    'bg-amber-100 text-amber-900': item.confidence === 'medium',
+                    'bg-slate-100 text-slate-700': item.confidence === 'low'
+                  }">
+                    {{ confidenceLabel(item.confidence) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-slate-600">
+                  <span class="block break-words">
+                    {{ item.reason || ('common.none' | t) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-slate-600">
+                  <span class="block break-words">{{ item.warnings.length ? item.warnings.join(' ') : ('common.none' | t) }}</span>
+                </td>
+                <td class="px-4 py-3 text-slate-600">
+                  <span class="block break-words">{{ item.detectedKeys.length ? item.detectedKeys.join(', ') : ('common.none' | t) }}</span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <div class="flex flex-col items-center gap-2">
+                    <button
+                      class="tool-button tool-button-secondary size-10 px-0"
+                      type="button"
+                      [disabled]="!canExportReportItem(item) || store.busy()"
+                      (click)="exportReportItemTcx(item)"
+                      [attr.aria-label]="'converter.exportTcxAria' | t: { path: item.path }"
+                      [attr.title]="canExportReportItem(item) ? ('converter.exportTcx' | t) : ('converter.fileNotConvertible' | t)"
+                    >
+                      <svg lucideFileCode2 [size]="16"></svg>
+                      <span class="sr-only">{{ 'converter.exportTcx' | t }}</span>
+                    </button>
+                    <button
+                      class="tool-button tool-button-secondary size-10 px-0"
+                      type="button"
+                      [disabled]="!canExportReportItem(item) || store.busy()"
+                      (click)="exportReportItemFit(item)"
+                      [attr.aria-label]="'converter.exportFitAria' | t: { path: item.path }"
+                      [attr.title]="canExportReportItem(item) ? ('converter.exportFit' | t) : ('converter.fileNotConvertible' | t)"
+                    >
+                      <svg lucideActivitySquare [size]="16"></svg>
+                      <span class="sr-only">{{ 'converter.exportFit' | t }}</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="!store.classificationReport().length">
+                <td colspan="7" class="px-4 py-8 text-center text-slate-500">{{ 'converter.noFiles' | t }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="max-h-96 divide-y divide-line overflow-y-auto md:hidden" data-testid="classification-mobile-list">
+          <article *ngFor="let item of store.classificationReport(); trackBy: trackByReportPath" class="space-y-4 p-4" data-testid="classification-mobile-card">
+            <div class="flex min-w-0 items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase text-slate-500">{{ 'converter.path' | t }}</p>
+                <button
+                  class="mt-1 max-w-full break-all text-left font-semibold text-ink underline decoration-dotted underline-offset-2"
+                  type="button"
+                  [attr.title]="item.path"
+                  [attr.aria-label]="filePathToggleLabel(item.path)"
+                  [attr.aria-expanded]="filePathExpanded(item.path)"
+                  (click)="toggleFilePath(item.path)"
+                >
+                  {{ displayFilePath(item.path) }}
+                </button>
+              </div>
+              <span class="status-pill shrink-0" [ngClass]="{
+                'bg-emerald-100 text-emerald-900': item.confidence === 'high',
+                'bg-amber-100 text-amber-900': item.confidence === 'medium',
+                'bg-slate-100 text-slate-700': item.confidence === 'low'
+              }">
+                {{ confidenceLabel(item.confidence) }}
+              </span>
+            </div>
+
+            <dl class="grid grid-cols-1 gap-3 text-sm min-[420px]:grid-cols-2">
+              <div class="min-w-0">
+                <dt class="text-slate-500">{{ 'converter.category' | t }}</dt>
+                <dd class="break-words font-medium text-ink">{{ categoryLabel(item.category) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500">{{ 'converter.size' | t }}</dt>
+                <dd class="font-medium text-ink">{{ formatBytes(item.sizeBytes) }}</dd>
+              </div>
+              <div class="min-w-0 min-[420px]:col-span-2">
+                <dt class="text-slate-500">{{ 'converter.reason' | t }}</dt>
+                <dd class="break-words text-slate-700">{{ item.reason || ('common.none' | t) }}</dd>
+              </div>
+              <div class="min-w-0 min-[420px]:col-span-2">
+                <dt class="text-slate-500">{{ 'converter.warnings' | t }}</dt>
+                <dd class="break-words text-slate-700">{{ item.warnings.length ? item.warnings.join(' ') : ('common.none' | t) }}</dd>
+              </div>
+              <div class="min-w-0 min-[420px]:col-span-2">
+                <dt class="text-slate-500">{{ 'converter.detectedKeys' | t }}</dt>
+                <dd class="break-words text-slate-700">{{ item.detectedKeys.length ? item.detectedKeys.join(', ') : ('common.none' | t) }}</dd>
+              </div>
+            </dl>
+
+            <div class="grid gap-2 min-[420px]:grid-cols-2">
+              <button
+                class="tool-button tool-button-secondary w-full"
+                type="button"
+                [disabled]="!canExportReportItem(item) || store.busy()"
+                (click)="exportReportItemTcx(item)"
+              >
+                <svg lucideFileCode2 [size]="16"></svg>
+                <span>{{ 'converter.exportTcx' | t }}</span>
+              </button>
+              <button
+                class="tool-button tool-button-secondary w-full"
+                type="button"
+                [disabled]="!canExportReportItem(item) || store.busy()"
+                (click)="exportReportItemFit(item)"
+              >
+                <svg lucideActivitySquare [size]="16"></svg>
+                <span>{{ 'converter.exportFit' | t }}</span>
+              </button>
+            </div>
+          </article>
+
+          <p *ngIf="!store.classificationReport().length" class="px-4 py-8 text-center text-sm text-slate-500">
+            {{ 'converter.noFiles' | t }}
+          </p>
+        </div>
+      </section>
+
+      <section class="min-w-0 rounded-lg border border-line bg-white" data-testid="activity-preview-panel">
+        <div class="flex min-w-0 flex-col gap-2 border-b border-line px-4 py-4">
+          <h2 class="text-lg font-semibold">{{ 'converter.previewTitle' | t }}</h2>
+          <p class="break-words text-sm text-slate-600">
+            {{ 'converter.previewLead' | t }}
+          </p>
+        </div>
+
+        <ng-template #activityPreviewDetail let-selected="selected">
+          <div class="min-w-0 space-y-5" data-testid="activity-preview-detail">
+            <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+              <div class="min-w-0">
+                <h3 class="break-words text-xl font-semibold text-ink">{{ displaySport(selected.activity) }}</h3>
+                <button
+                  class="mt-1 max-w-full break-all text-left text-sm text-slate-600 underline decoration-dotted underline-offset-2"
+                  type="button"
+                  [attr.title]="selected.path"
+                  [attr.aria-label]="filePathToggleLabel(selected.path)"
+                  [attr.aria-expanded]="filePathExpanded(selected.path)"
+                  (click)="toggleFilePath(selected.path)"
+                >
+                  {{ displayFilePath(selected.path) }}
+                </button>
+              </div>
+              <div class="flex w-full min-w-0 flex-col gap-2 sm:grid sm:grid-cols-2 md:w-auto md:grid-cols-none md:flex-row md:items-center md:justify-end md:self-start">
+                <button
+                  class="tool-button tool-button-secondary w-full md:size-10 md:min-h-10 md:px-0 md:py-0"
+                  type="button"
+                  [disabled]="!canExportClassification(selected) || store.busy()"
+                  (click)="store.exportOneTcx(selected)"
+                  [attr.aria-label]="'converter.exportTcxAria' | t: { path: selected.path }"
+                  [attr.title]="canExportClassification(selected) ? ('converter.exportTcx' | t) : ('converter.tcxUnavailable' | t)"
+                >
+                  <svg lucideFileCode2 [size]="16"></svg>
+                  <span class="md:sr-only">{{ 'converter.exportTcx' | t }}</span>
+                </button>
+                <button
+                  class="tool-button tool-button-secondary w-full md:size-10 md:min-h-10 md:px-0 md:py-0"
+                  type="button"
+                  [disabled]="!canExportClassification(selected) || store.busy()"
+                  (click)="store.exportOneFit(selected)"
+                  [attr.aria-label]="'converter.exportFitAria' | t: { path: selected.path }"
+                  [attr.title]="canExportClassification(selected) ? ('converter.exportFit' | t) : ('converter.fitUnavailable' | t)"
+                >
+                  <svg lucideActivitySquare [size]="16"></svg>
+                  <span class="md:sr-only">{{ 'converter.exportFit' | t }}</span>
+                </button>
+              </div>
+            </div>
+
+            <dl class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4" data-testid="activity-preview-stats">
+              <div class="min-w-0">
+                <dt class="text-slate-500">{{ 'converter.start' | t }}</dt>
+                <dd class="break-words font-semibold text-ink">{{ formatDate(selected.activity.startTime) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500">{{ 'converter.duration' | t }}</dt>
+                <dd class="font-semibold text-ink">{{ formatDuration(selected.activity.durationSeconds) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500">{{ 'converter.distance' | t }}</dt>
+                <dd class="font-semibold text-ink">{{ formatDistance(selected.activity.distanceMeters) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500">{{ paceOrSpeedLabel(selected.activity) }}</dt>
+                <dd class="font-semibold text-ink">{{ formatAveragePaceOrSpeed(selected.activity) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500">{{ 'converter.calories' | t }}</dt>
+                <dd class="font-semibold text-ink">{{ formatCalories(selected.activity.calories) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500"><app-term-tooltip term="HR">{{ 'converter.avgHr' | t }}</app-term-tooltip></dt>
+                <dd class="font-semibold text-ink">{{ formatHeartRate(store.selectedActivityPreview()?.averageHeartRate) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500"><app-term-tooltip term="HR">{{ 'converter.maxHr' | t }}</app-term-tooltip></dt>
+                <dd class="font-semibold text-ink">{{ formatHeartRate(store.selectedActivityPreview()?.maxHeartRate) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500"><app-term-tooltip term="trackpoint">{{ 'converter.trackpoints' | t }}</app-term-tooltip></dt>
+                <dd class="font-semibold text-ink">{{ selected.activity.trackpointCount }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500"><app-term-tooltip term="GPS">GPS</app-term-tooltip></dt>
+                <dd class="font-semibold text-ink">{{ yesNo(selected.activity.hasGps) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500"><app-term-tooltip term="HR">HR</app-term-tooltip></dt>
+                <dd class="font-semibold text-ink">{{ yesNo(selected.activity.hasHeartRate) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500"><app-term-tooltip term="cadence">{{ 'converter.cadence' | t }}</app-term-tooltip></dt>
+                <dd class="font-semibold text-ink">{{ yesNo(selected.activity.hasCadence) }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500"><app-term-tooltip term="power">{{ 'converter.power' | t }}</app-term-tooltip></dt>
+                <dd class="font-semibold text-ink">{{ yesNo(selected.activity.hasPower) }}</dd>
+              </div>
+            </dl>
+
+            <div
+              *ngIf="!store.selectedActivityPreviewResult() && store.activityPreviewLoadingPath() !== selected.path"
+              class="rounded-md border border-line bg-slate-50 p-4 text-sm"
+            >
+              <p class="break-words text-slate-600">
+                {{ 'converter.previewPrivacyNote' | t }}
+              </p>
+              <button class="tool-button tool-button-primary mt-3 w-full sm:w-auto" type="button" (click)="store.loadSelectedActivityPreview()">
+                <svg lucideActivity [size]="16"></svg>
+                <span>{{ 'converter.loadMapCharts' | t }}</span>
+              </button>
+            </div>
+
+            <p
+              *ngIf="store.activityPreviewLoadingPath() === selected.path"
+              class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+            >
+              {{ 'converter.previewLoading' | t }}
+            </p>
+
+            <p *ngIf="store.activityPreviewError()" class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              {{ store.activityPreviewError() }}
+            </p>
+
+            <ng-container *ngIf="store.selectedActivityPreviewResult() as result">
+              <p *ngIf="result.warnings.length" class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                {{ 'converter.previewWarnings' | t }} {{ result.warnings.join(' ') }}
+              </p>
+              <ng-container *ngIf="store.selectedActivityPreview() as activity; else noNormalizedPreview">
+                <app-activity-route-preview [activity]="activity"></app-activity-route-preview>
+                <app-activity-charts [activity]="activity"></app-activity-charts>
+              </ng-container>
+            </ng-container>
+
+            <ng-template #noNormalizedPreview>
+              <p class="rounded-md border border-line bg-slate-50 p-4 text-sm text-slate-600">
+                {{ 'converter.noNormalizedPreview' | t }}
+              </p>
+            </ng-template>
+          </div>
+        </ng-template>
+
+        <ng-container *ngIf="store.activityPreviewCandidates().length; else noActivityPreviewCandidates">
+          <div class="divide-y divide-line lg:hidden" data-testid="activity-preview-mobile-list">
+            <article *ngFor="let item of store.activityPreviewCandidates(); trackBy: trackByActivityPreviewPath" class="min-w-0">
+              <button
+                class="flex w-full min-w-0 items-start justify-between gap-3 px-4 py-4 text-left text-sm transition hover:bg-slate-50"
+                type="button"
+                [attr.aria-expanded]="isActivityPreviewExpanded(item)"
+                (click)="toggleActivityPreviewCard(item)"
+              >
+                <span class="min-w-0">
+                  <span class="block break-words font-semibold text-ink">{{ displaySport(item.activity) }}</span>
+                  <span class="mt-1 block text-xs text-slate-600">{{ formatDate(item.activity.startTime) }}</span>
+                  <span class="mt-2 flex flex-wrap gap-1">
+                    <span *ngFor="let badge of dataBadges(item.activity)" class="status-pill bg-slate-100 text-slate-700">{{ badge }}</span>
+                    <span *ngIf="!dataBadges(item.activity).length" class="text-xs text-slate-500">{{ 'converter.noSensors' | t }}</span>
+                  </span>
+                </span>
+                <svg *ngIf="isActivityPreviewExpanded(item); else collapsedActivityIcon" lucideChevronUp class="mt-1 shrink-0 text-pine" [size]="18"></svg>
+                <ng-template #collapsedActivityIcon>
+                  <svg lucideChevronDown class="mt-1 shrink-0 text-slate-500" [size]="18"></svg>
+                </ng-template>
+              </button>
+
+              <div *ngIf="isActivityPreviewExpanded(item)" class="border-t border-line px-4 py-4" data-testid="activity-preview-mobile-detail">
+                <ng-container *ngTemplateOutlet="activityPreviewDetail; context: { selected: item }"></ng-container>
+              </div>
+            </article>
+          </div>
+
+          <div class="hidden min-w-0 gap-4 p-4 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+            <div class="min-w-0 space-y-2" data-testid="activity-preview-list">
+              <button
+                *ngFor="let item of store.activityPreviewCandidates(); trackBy: trackByActivityPreviewPath"
+                class="w-full min-w-0 rounded-md border px-3 py-3 text-left text-sm transition hover:bg-slate-50"
+                type="button"
+                [ngClass]="{
+                  'border-pine bg-emerald-50': isSelectedActivity(item),
+                  'border-line bg-white': !isSelectedActivity(item)
+                }"
+                (click)="store.selectActivityPreview(item.path)"
+              >
+                <span class="block break-words font-semibold text-ink">{{ displaySport(item.activity) }}</span>
+                <span class="mt-1 block text-xs text-slate-600">{{ formatDate(item.activity.startTime) }}</span>
+                <span class="mt-2 flex flex-wrap gap-1">
+                  <span *ngFor="let badge of dataBadges(item.activity)" class="status-pill bg-slate-100 text-slate-700">{{ badge }}</span>
+                  <span *ngIf="!dataBadges(item.activity).length" class="text-xs text-slate-500">{{ 'converter.noSensors' | t }}</span>
+                </span>
+              </button>
+            </div>
+
+            <ng-container *ngIf="store.selectedActivityCandidate() as selected">
+              <ng-container *ngTemplateOutlet="activityPreviewDetail; context: { selected: selected }"></ng-container>
+            </ng-container>
+          </div>
+        </ng-container>
+
+        <ng-template #noActivityPreviewCandidates>
+          <p class="px-4 py-8 text-center text-sm text-slate-500">{{ 'converter.activityListEmpty' | t }}</p>
+        </ng-template>
+      </section>
+
+      <section class="min-w-0 rounded-lg border border-line bg-white" data-testid="wellness-panel">
+        <ng-template #wellnessHeader>
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">{{ 'converter.wellnessTitle' | t }}</h2>
+            <p class="break-words text-sm text-slate-600">
+              {{ 'converter.wellnessLead' | t }}
+            </p>
+            <p class="mt-2 text-sm"><app-help-link section="sleep-and-wellness"></app-help-link></p>
+          </div>
+        </ng-template>
+
+        <ng-template #wellnessContent>
+          <div class="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]">
+            <div
+              *ngIf="store.importProgress()?.stage === 'analyzing_wellness'"
+              class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:col-span-2"
+            >
+              <div class="flex min-w-0 items-center justify-between gap-3">
+                <span class="font-semibold">{{ 'converter.wellnessAnalysisRunning' | t }}</span>
+                <span>{{ store.importProgress()?.processedFiles }} / {{ store.importProgress()?.totalFiles }}</span>
+              </div>
+              <div class="mt-2 h-2 overflow-hidden rounded-full bg-white">
+                <div
+                  class="h-full rounded-full bg-amber-600 transition-all"
+                  [class.animate-pulse]="isImportProgressStarting(store.importProgress()!)"
+                  [style.width.%]="importProgressPercent()"
+                ></div>
+              </div>
+              <p *ngIf="importProgressDetail(store.importProgress()!) as wellnessProgressDetail" class="mt-2 text-xs">
+                {{ wellnessProgressDetail }}
+              </p>
+              <button
+                *ngIf="store.importProgress()?.currentPath as wellnessPath"
+                class="mt-2 max-w-full break-all text-left text-xs underline decoration-dotted underline-offset-2"
+                type="button"
+                [attr.title]="wellnessPath"
+                [attr.aria-label]="filePathToggleLabel(wellnessPath)"
+                [attr.aria-expanded]="filePathExpanded(wellnessPath)"
+                (click)="toggleFilePath(wellnessPath)"
+              >
+                {{ displayFilePath(wellnessPath) }}
+              </button>
+            </div>
+
+            <dl class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+              <div class="rounded-md border border-line p-3">
+                <dt class="text-slate-500">{{ 'converter.wellnessDailyActivity' | t }}</dt>
+                <dd class="mt-1 text-xl font-semibold text-ink">{{ store.wellnessDailyActivityCount() }}</dd>
+              </div>
+              <div class="rounded-md border border-line p-3">
+                <dt class="text-slate-500">{{ 'converter.wellnessSleep' | t }}</dt>
+                <dd class="mt-1 text-xl font-semibold text-ink">{{ store.wellnessSleepCount() }}</dd>
+              </div>
+              <div class="rounded-md border border-line p-3">
+                <dt class="text-slate-500">{{ 'converter.wellnessRecharge' | t }}</dt>
+                <dd class="mt-1 text-xl font-semibold text-ink">{{ store.wellnessNightlyRechargeCount() }}</dd>
+              </div>
+              <div class="rounded-md border border-line p-3">
+                <dt class="text-slate-500">{{ 'converter.wellnessHeartRate' | t }}</dt>
+                <dd class="mt-1 text-xl font-semibold text-ink">{{ store.wellnessDailyHeartRateCount() }}</dd>
+              </div>
+            </dl>
+
+            <div class="min-w-0 rounded-md border border-line bg-slate-50 p-4 text-sm">
+              <p class="break-words text-slate-600">
+                {{ 'converter.wellnessCounterNote' | t }}
+                <span class="font-semibold text-ink">{{ store.wellnessDateRangeLabel() }}</span>.
+                {{ 'converter.wellnessSourceFiles' | t }}
+                <span class="font-semibold text-ink">{{ store.wellnessSourceFileCount() }}</span>.
+              </p>
+              <p class="mt-3 font-semibold text-ink">{{ 'converter.availableReports' | t }}</p>
+              <ul *ngIf="store.wellnessAvailableReports().length; else noWellnessReports" class="mt-2 space-y-1 text-slate-600">
+                <li *ngFor="let report of store.wellnessAvailableReports()" class="break-words">{{ report }}</li>
+              </ul>
+              <ng-template #noWellnessReports>
+                <p class="mt-2 text-slate-500">{{ 'converter.wellnessEmpty' | t }}</p>
+              </ng-template>
+            </div>
+          </div>
+        </ng-template>
+
+        <details
+          class="md:hidden"
+          data-testid="wellness-mobile-details"
+          [attr.open]="store.wellnessHasData() || store.importProgress()?.stage === 'analyzing_wellness' ? '' : null"
+        >
+          <summary class="flex min-w-0 cursor-pointer list-none items-start justify-between gap-3 px-4 py-4 [&::-webkit-details-marker]:hidden">
+            <span class="min-w-0">
+              <span class="block text-lg font-semibold">{{ 'converter.wellnessTitle' | t }}</span>
+              <span class="mt-1 block break-words text-sm text-slate-600">
+                {{ store.wellnessHasData() ? ('converter.wellnessDetected' | t) : ('converter.wellnessEmpty' | t) }}
+              </span>
+            </span>
+            <svg lucideChevronDown class="mt-1 shrink-0 text-slate-500" [size]="18"></svg>
+          </summary>
+          <div class="border-t border-line">
+            <div class="px-4 py-4">
+              <ng-container *ngTemplateOutlet="wellnessHeader"></ng-container>
+              <button
+                class="tool-button tool-button-secondary mt-3 w-full"
+                type="button"
+                [disabled]="!store.wellnessHasData() || store.busy()"
+                (click)="store.exportWellnessReportsZip()"
+              >
+                <svg lucideFileArchive [size]="18"></svg>
+                <span>{{ 'converter.wellnessDownload' | t }}</span>
+              </button>
+            </div>
+            <ng-container *ngTemplateOutlet="wellnessContent"></ng-container>
+          </div>
+        </details>
+
+        <div class="hidden md:block">
+          <div class="flex min-w-0 flex-col gap-3 border-b border-line px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+            <ng-container *ngTemplateOutlet="wellnessHeader"></ng-container>
+          <button
+            class="tool-button tool-button-secondary w-full sm:w-auto"
+            type="button"
+            [disabled]="!store.wellnessHasData() || store.busy()"
+            (click)="store.exportWellnessReportsZip()"
+          >
+            <svg lucideFileArchive [size]="18"></svg>
+            <span>{{ 'converter.wellnessDownload' | t }}</span>
+          </button>
+          </div>
+          <ng-container *ngTemplateOutlet="wellnessContent"></ng-container>
+        </div>
+      </section>
+
+      <section class="min-w-0 rounded-lg border border-line bg-white" data-testid="bulk-export-panel">
+        <ng-template #migrationExportOptions>
+          <label class="flex min-w-0 items-center gap-3 rounded-md border border-line px-3 py-3 text-sm">
+            <input
+              class="size-4 shrink-0 accent-emerald-700"
+              type="checkbox"
+              [checked]="store.migrationExportOptions().includeTcx"
+              (change)="onMigrationOptionChange('includeTcx', $event)"
+            />
+            <span class="break-words font-medium text-ink">{{ 'converter.includeTcx' | t }}</span>
+          </label>
+          <label class="flex min-w-0 items-center gap-3 rounded-md border border-line px-3 py-3 text-sm">
+            <input
+              class="size-4 shrink-0 accent-emerald-700"
+              type="checkbox"
+              [checked]="store.migrationExportOptions().includeFit"
+              (change)="onMigrationOptionChange('includeFit', $event)"
+            />
+            <span class="break-words font-medium text-ink">{{ 'converter.includeFit' | t }}</span>
+          </label>
+          <label class="flex min-w-0 items-center gap-3 rounded-md border border-line px-3 py-3 text-sm">
+            <input
+              class="size-4 shrink-0 accent-emerald-700"
+              type="checkbox"
+              [checked]="store.migrationExportOptions().includeReports"
+              (change)="onMigrationOptionChange('includeReports', $event)"
+            />
+            <span class="break-words font-medium text-ink">{{ 'converter.includeReports' | t }}</span>
+          </label>
+          <label class="flex min-w-0 items-center gap-3 rounded-md border border-line px-3 py-3 text-sm">
+            <input
+              class="size-4 shrink-0 accent-emerald-700"
+              type="checkbox"
+              [checked]="store.migrationExportOptions().includeWellnessReports"
+              (change)="onMigrationOptionChange('includeWellnessReports', $event)"
+            />
+            <span class="break-words font-medium text-ink">{{ 'converter.includeWellnessReports' | t }}</span>
+          </label>
+          <label class="flex min-w-0 items-center gap-3 rounded-md border border-line px-3 py-3 text-sm">
+            <input
+              class="size-4 shrink-0 accent-emerald-700"
+              type="checkbox"
+              [checked]="store.migrationExportOptions().includeReadme"
+              (change)="onMigrationOptionChange('includeReadme', $event)"
+            />
+            <span class="break-words font-medium text-ink">README</span>
+          </label>
+          <button
+            class="tool-button tool-button-primary w-full"
+            type="button"
+            [disabled]="!canDownloadMigrationPackage()"
+            (click)="store.exportSelectedMigrationPackage()"
+          >
+            <svg lucideFileArchive [size]="18"></svg>
+            <span>{{ 'converter.downloadSelectedZip' | t }}</span>
+          </button>
+        </ng-template>
+
+        <div class="flex min-w-0 flex-col gap-3 border-b border-line px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">{{ 'converter.bulkTitle' | t }}</h2>
+            <p class="break-words text-sm text-slate-600">
+              {{ 'converter.bulkLead' | t }}
+            </p>
+            <p class="mt-2 text-sm"><app-help-link section="tcx-vs-fit"></app-help-link></p>
+          </div>
+          <div class="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:justify-end">
+            <button
+              class="tool-button tool-button-secondary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.classificationReport().length || store.busy()"
+              (click)="store.exportReportsZip()"
+            >
+              <svg lucideFileCode2 [size]="18"></svg>
+              <span>{{ 'converter.reportsCsvZip' | t }}</span>
+            </button>
+            <button
+              class="tool-button tool-button-primary w-full sm:w-auto"
+              type="button"
+              [disabled]="!store.classificationReport().length || store.busy()"
+              (click)="store.exportFullMigrationPackage()"
+            >
+              <svg lucideFileArchive [size]="18"></svg>
+              <span>{{ 'converter.fullPackage' | t }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+          <details class="md:hidden" data-testid="bulk-export-options-menu">
+            <summary class="tool-button tool-button-secondary w-full cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+              <svg lucideFileArchive [size]="18"></svg>
+              <span>{{ 'converter.bulkOptions' | t }}</span>
+              <svg lucideChevronDown class="ml-auto shrink-0" [size]="16"></svg>
+            </summary>
+            <div class="mt-2 grid gap-3 rounded-md border border-line bg-slate-50 p-2">
+              <ng-container *ngTemplateOutlet="migrationExportOptions"></ng-container>
+            </div>
+          </details>
+
+          <div class="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-3" data-testid="bulk-export-options-desktop">
+            <ng-container *ngTemplateOutlet="migrationExportOptions"></ng-container>
+          </div>
+
+          <div class="rounded-md border border-line bg-slate-50 p-4" *ngIf="store.migrationExportProgress() as progress">
+            <div class="flex min-w-0 items-center justify-between gap-3 text-sm">
+              <span class="font-semibold text-ink">{{ migrationPhaseLabel(progress.phase) }}</span>
+              <span class="text-slate-600">{{ progress.processedActivities }} / {{ progress.totalActivities }}</span>
+            </div>
+            <div class="mt-2 h-2 overflow-hidden rounded-full bg-white">
+              <div class="h-full rounded-full bg-pine transition-all" [style.width.%]="migrationProgressPercent()"></div>
+            </div>
+            <button
+              *ngIf="progress.currentFile"
+              class="mt-2 max-w-full break-all text-left text-xs text-slate-500 underline decoration-dotted underline-offset-2"
+              type="button"
+              [attr.title]="progress.currentFile"
+              [attr.aria-label]="filePathToggleLabel(progress.currentFile)"
+              [attr.aria-expanded]="filePathExpanded(progress.currentFile)"
+              (click)="toggleFilePath(progress.currentFile)"
+            >
+              {{ displayFilePath(progress.currentFile) }}
+            </button>
+            <dl class="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
+              <div>
+                <dt class="text-slate-500">{{ 'converter.successes' | t }}</dt>
+                <dd class="font-semibold text-ink">{{ progress.successes }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500">{{ 'common.warnings' | t }}</dt>
+                <dd class="font-semibold text-ink">{{ progress.warnings }}</dd>
+              </div>
+              <div>
+                <dt class="text-slate-500">{{ 'common.errors' | t }}</dt>
+                <dd class="font-semibold text-ink">{{ progress.errors }}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <section
+        *ngIf="store.lastSuccessfulExport() as exportNotice"
+        class="min-w-0 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-950"
+        data-testid="post-export-support"
+      >
+        <div class="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">{{ 'converter.postExportTitle' | t }}</h2>
+            <p class="mt-2 break-words text-sm leading-6">
+              {{ 'converter.postExportDonation' | t }}
+            </p>
+            <p class="mt-1 break-words text-xs text-emerald-900">
+              {{ 'converter.postExportDownloaded' | t: { filename: exportNotice.filename } }} {{ 'converter.postExportSupport' | t }}
+            </p>
+          </div>
+          <app-support-button
+            class="block w-full md:w-auto"
+            appearance="secondary"
+            [fullWidth]="true"
+            [ariaLabel]="'converter.postExportSupportAria' | t"
+          ></app-support-button>
+        </div>
+      </section>
+
+      <section class="min-w-0 rounded-lg border border-line bg-white">
+        <div class="border-b border-line px-4 py-4">
+          <h2 class="text-lg font-semibold">{{ 'converter.diagnosticsTitle' | t }}</h2>
+          <p class="mt-2 text-sm"><app-help-link section="troubleshooting"></app-help-link></p>
+        </div>
+        <div class="min-w-0 p-4" data-testid="garmin-diagnostics-panel">
+          <ng-container *ngIf="store.selectedActivityCandidate() as item; else noGarminDiagnostics">
+            <ng-container *ngIf="item.activity as activity">
+              <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)]">
+                <div class="min-w-0 space-y-4">
+                  <label class="block text-sm font-semibold text-ink" for="diagnostic-activity">{{ 'converter.diagnosticActivity' | t }}</label>
+                  <select
+                    id="diagnostic-activity"
+                    class="w-full min-w-0 rounded-md border border-line bg-white px-3 py-2 text-sm"
+                    [value]="item.path"
+                    (change)="onDiagnosticActivityChange($event)"
+                  >
+                    <option *ngFor="let candidate of store.activityValidationCards(); trackBy: trackByFilename" [value]="candidate.path">
+                      {{ displaySport(candidate.activity) }} — {{ candidate.filename }}
+                    </option>
+                  </select>
+
+                  <div class="flex min-w-0 items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <button
+                        class="max-w-full break-all text-left font-semibold text-ink underline decoration-dotted underline-offset-2"
+                        type="button"
+                        [attr.title]="activity.sourceFilename"
+                        [attr.aria-label]="filePathToggleLabel(activity.sourceFilename)"
+                        [attr.aria-expanded]="filePathExpanded(activity.sourceFilename)"
+                        (click)="toggleFilePath(activity.sourceFilename)"
+                      >
+                        {{ displayFilePath(activity.sourceFilename) }}
+                      </button>
+                      <p class="break-words text-sm text-slate-600">
+                        {{ displaySport(activity) }}
+                        <span *ngIf="showTcxSport(activity)">· {{ 'converter.tcxSport' | t: { sport: displayTcxSport(activity) } }}</span>
+                        · {{ formatDate(activity.startTime) }}
+                      </p>
+                    </div>
+                    <svg lucideActivity class="shrink-0 text-ocean" [size]="22"></svg>
+                  </div>
+
+                  <ng-container *ngIf="item.garminReady as validation">
+                    <div class="flex flex-wrap items-center gap-2 text-sm">
+                      <span class="status-pill" [ngClass]="garminStatusClasses(validation.status)">
+                        {{ garminStatusLabel(validation.status) }}
+                      </span>
+                      <span class="break-words text-slate-600">{{ garminStatusSummary(validation) }}</span>
+                    </div>
+
+                    <dl class="grid grid-cols-1 gap-3 text-sm min-[420px]:grid-cols-2">
+                      <div class="min-w-0">
+                        <dt class="text-slate-500">{{ 'converter.possibleFormats' | t }}</dt>
+                        <dd class="break-words font-semibold">{{ formatGarminFormats(validation) }}</dd>
+                      </div>
+                      <div class="min-w-0">
+                        <dt class="text-slate-500"><app-term-tooltip term="trackpoint">{{ 'converter.trackpoints' | t }}</app-term-tooltip></dt>
+                        <dd class="break-words font-semibold">{{ validation.trackpointCount }}</dd>
+                      </div>
+                      <div class="min-w-0">
+                        <dt class="text-slate-500"><app-term-tooltip term="GPS">GPS</app-term-tooltip></dt>
+                        <dd class="break-words font-semibold">{{ yesNo(validation.hasGps) }}</dd>
+                      </div>
+                      <div class="min-w-0">
+                        <dt class="text-slate-500"><app-term-tooltip term="HR">HR</app-term-tooltip></dt>
+                        <dd class="break-words font-semibold">{{ yesNo(validation.hasHeartRate) }}</dd>
+                      </div>
+                      <div class="min-w-0">
+                        <dt class="text-slate-500">{{ 'converter.duration' | t }}</dt>
+                        <dd class="break-words font-semibold">{{ formatDuration(activity.durationSeconds) }}</dd>
+                      </div>
+                      <div class="min-w-0">
+                        <dt class="text-slate-500">{{ 'converter.distance' | t }}</dt>
+                        <dd class="break-words font-semibold">{{ formatDistance(activity.distanceMeters) }}</dd>
+                      </div>
+                    </dl>
+
+                    <ng-container *ngIf="store.selectedDiagnosticReport() as report">
+                      <div class="space-y-2" data-testid="diagnostic-checklist">
+                        <article
+                          *ngFor="let issue of report.issues; trackBy: trackByDiagnosticIssue"
+                          class="min-w-0 rounded-md border p-3 text-sm"
+                          [ngClass]="diagnosticIssueClasses(issue)"
+                        >
+                          <p class="font-semibold">{{ diagnosticSeverityLabel(issue) }}: {{ issue.title }}</p>
+                          <p class="mt-1 break-words">{{ issue.detail }}</p>
+                          <p class="mt-1 break-words font-medium">{{ 'converter.suggestion' | t }} {{ issue.suggestion }}</p>
+                        </article>
+                      </div>
+
+                      <fieldset class="rounded-md border border-line p-3 text-sm" data-testid="diagnostic-gps-options">
+                        <legend class="px-1 font-semibold text-ink">{{ 'converter.diagnosticGpsMode' | t }}</legend>
+                        <label class="mt-2 flex items-start gap-2">
+                          <input
+                            class="mt-1"
+                            type="radio"
+                            name="diagnostic-gps-mode"
+                            value="none"
+                            [checked]="store.effectiveDiagnosticGpsMode() === 'none'"
+                            (change)="onDiagnosticGpsModeChange($event)"
+                          />
+                          <span>{{ 'converter.diagnosticGpsNone' | t }}</span>
+                        </label>
+                        <label class="mt-2 flex items-start gap-2" [class.opacity-50]="!store.diagnosticGpsAvailable()">
+                          <input
+                            class="mt-1"
+                            type="radio"
+                            name="diagnostic-gps-mode"
+                            value="rounded"
+                            [checked]="store.effectiveDiagnosticGpsMode() === 'rounded'"
+                            [disabled]="!store.diagnosticGpsAvailable()"
+                            (change)="onDiagnosticGpsModeChange($event)"
+                          />
+                          <span>{{ 'converter.diagnosticGpsRounded' | t }}</span>
+                        </label>
+                        <label class="mt-2 flex items-start gap-2" [class.opacity-50]="!store.diagnosticGpsAvailable()">
+                          <input
+                            class="mt-1"
+                            type="radio"
+                            name="diagnostic-gps-mode"
+                            value="full"
+                            [checked]="store.effectiveDiagnosticGpsMode() === 'full'"
+                            [disabled]="!store.diagnosticGpsAvailable()"
+                            (change)="onDiagnosticGpsModeChange($event)"
+                          />
+                          <span>{{ 'converter.diagnosticGpsFull' | t }}</span>
+                        </label>
+                      </fieldset>
+
+                      <div class="grid gap-2 min-[520px]:grid-cols-2">
+                        <button class="tool-button tool-button-secondary w-full" type="button" (click)="store.copyDiagnosticReport()">
+                          <svg lucideFileCode2 [size]="16"></svg>
+                          <span>{{ 'converter.copyDiagnostic' | t }}</span>
+                        </button>
+                        <button class="tool-button tool-button-secondary w-full" type="button" (click)="store.exportDiagnosticReport()">
+                          <svg lucideDownload [size]="16"></svg>
+                          <span>{{ 'converter.downloadDiagnostic' | t }}</span>
+                        </button>
+                        <button class="tool-button tool-button-secondary w-full" type="button" (click)="store.exportDiagnosticPackage()">
+                          <svg lucideFileArchive [size]="16"></svg>
+                          <span>{{ 'converter.downloadDiagnosticPackage' | t }}</span>
+                        </button>
+                        <button
+                          class="tool-button tool-button-secondary w-full"
+                          type="button"
+                          [disabled]="!canExportClassification(item) || store.busy()"
+                          (click)="store.exportOneTcx(item)"
+                        >
+                          <svg lucideFileCode2 [size]="16"></svg>
+                          <span>{{ 'converter.exportTcx' | t }}</span>
+                        </button>
+                        <button
+                          class="tool-button tool-button-secondary w-full"
+                          type="button"
+                          [disabled]="!canExportClassification(item) || store.busy()"
+                          (click)="store.exportOneFit(item)"
+                        >
+                          <svg lucideActivitySquare [size]="16"></svg>
+                          <span>{{ 'converter.exportFit' | t }}</span>
+                        </button>
+                      </div>
+
+                      <p *ngIf="store.diagnosticClipboardMessage()" class="text-sm font-semibold text-emerald-800">
+                        {{ store.diagnosticClipboardMessage() }}
+                      </p>
+                    </ng-container>
+                  </ng-container>
+                </div>
+
+                <div class="min-w-0 rounded-md border border-line bg-slate-50 p-3">
+                  <p class="text-sm font-semibold text-ink">{{ 'converter.diagnosticReport' | t }}</p>
+                  <pre class="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs text-slate-700" data-testid="diagnostic-report-preview">{{ store.selectedDiagnosticReportText() }}</pre>
+                </div>
+              </div>
+            </ng-container>
+          </ng-container>
+          <ng-template #noGarminDiagnostics>
+            <p class="text-sm text-slate-500">{{ 'converter.diagnosticNoActivity' | t }}</p>
+          </ng-template>
+        </div>
+      </section>
+    </section>
+
+    <aside class="min-w-0 space-y-4">
+      <section class="rounded-lg border border-line bg-white p-4">
+        <div class="flex min-w-0 items-center gap-2">
+          <svg lucideDatabase class="shrink-0 text-pine" [size]="20"></svg>
+          <h2 class="font-semibold">{{ 'converter.groupsTitle' | t }}</h2>
+        </div>
+        <dl class="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <dt class="text-slate-500">{{ 'converter.groupsReady' | t }}</dt>
+          <dd class="text-right font-semibold">{{ store.readyToConvert().length }}</dd>
+          <dt class="text-slate-500">{{ 'converter.groupsAccount' | t }}</dt>
+          <dd class="text-right font-semibold">{{ store.skippedSensitive().length }}</dd>
+          <dt class="text-slate-500">{{ 'converter.groupsActivity' | t }}</dt>
+          <dd class="text-right font-semibold">{{ store.skippedNonTraining().length }}</dd>
+          <dt class="text-slate-500">{{ 'converter.groupsAnalysis' | t }}</dt>
+          <dd class="text-right font-semibold">{{ store.needsAnalysis().length }}</dd>
+          <dt class="text-slate-500">{{ 'converter.groupsInvalid' | t }}</dt>
+          <dd class="text-right font-semibold">{{ store.invalidFiles().length }}</dd>
+        </dl>
+      </section>
+
+      <section class="rounded-lg border border-line bg-white p-4">
+        <div class="flex min-w-0 items-center gap-2">
+          <svg lucideAlertTriangle class="shrink-0 text-ember" [size]="20"></svg>
+          <h2 class="font-semibold">{{ 'converter.issuesTitle' | t }}</h2>
+        </div>
+        <ul class="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1 text-sm text-slate-700">
+          <li *ngFor="let issue of store.fileIssues(); let issueIndex = index" class="break-words">
+            <button
+              class="font-semibold text-ink underline decoration-dotted underline-offset-2"
+              type="button"
+              [attr.title]="issue.filename"
+              [attr.aria-label]="'converter.showFullFilename' | t: { filename: issue.filename }"
+              (click)="toggleFilename(fileIssueKey(issueIndex))"
+            >
+              {{ displayFilename(issue.filename, fileIssueKey(issueIndex)) }}
+            </button>
+            <span class="text-slate-400">:</span>
+            <span class="ml-1">{{ issue.reason }}</span>
+          </li>
+          <li *ngFor="let warning of store.allWarnings()" class="break-words">
+            <button
+              class="font-semibold text-ink underline decoration-dotted underline-offset-2"
+              type="button"
+              [attr.title]="warning.filename"
+              [attr.aria-label]="'converter.showFullFilename' | t: { filename: warning.filename }"
+              (click)="toggleFilename(warning.id)"
+            >
+              {{ displayFilename(warning.filename, warning.id) }}
+            </button>
+            <span class="text-slate-400">:</span>
+            <span class="ml-1">{{ warning.message }}</span>
+          </li>
+          <li *ngFor="let error of store.errors()" class="break-words text-red-700">{{ error }}</li>
+          <li *ngIf="!store.fileIssues().length && !store.allWarnings().length && !store.errors().length" class="text-slate-500">
+            {{ 'converter.issuesEmpty' | t }}
+          </li>
+        </ul>
+      </section>
+
+      <section
+        class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950 transition-colors dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100"
+        data-testid="privacy-offline-panel"
+      >
+        <div class="flex min-w-0 items-center gap-2 font-semibold">
+          <svg lucideShieldCheck class="shrink-0" [size]="20"></svg>
+          <h2>{{ 'converter.privacyTitle' | t }}</h2>
+        </div>
+        <p class="mt-3 break-words">
+          {{ 'converter.privacyLead' | t }}
+        </p>
+        <p class="mt-2"><app-help-link section="privacy"></app-help-link></p>
+
+        <dl class="mt-4 space-y-2 text-sm">
+          <div class="flex min-w-0 items-center justify-between gap-3">
+            <dt class="flex min-w-0 items-center gap-2">
+              <svg *ngIf="pwa.online(); else offlineStatusIcon" lucideWifi class="shrink-0" [size]="16"></svg>
+              <ng-template #offlineStatusIcon><svg lucideWifiOff class="shrink-0" [size]="16"></svg></ng-template>
+              <span>{{ 'converter.network' | t }}</span>
+            </dt>
+            <dd class="text-right font-semibold">{{ pwa.online() ? ('common.online' | t) : ('common.offline' | t) }}</dd>
+          </div>
+          <div class="flex min-w-0 items-center justify-between gap-3">
+            <dt class="flex min-w-0 items-center gap-2">
+              <svg lucideMonitorDown class="shrink-0" [size]="16"></svg>
+              <span>{{ 'converter.appStatus' | t }}</span>
+            </dt>
+            <dd class="text-right font-semibold">{{ pwa.serviceWorkerReady() ? ('common.ready' | t) : ('common.starting' | t) }}</dd>
+          </div>
+          <div class="flex min-w-0 items-center justify-between gap-3">
+            <dt class="flex min-w-0 items-center gap-2">
+              <svg lucideHardDriveDownload class="shrink-0" [size]="16"></svg>
+              <span>{{ 'converter.offlineMode' | t }}</span>
+            </dt>
+            <dd class="text-right font-semibold">{{ pwa.offlineCacheReady() ? ('common.prepared' | t) : ('common.notReady' | t) }}</dd>
+          </div>
+        </dl>
+
+        <details class="mt-4 border-t border-emerald-200 pt-3 dark:border-emerald-900/60" data-testid="privacy-details">
+          <summary class="cursor-pointer font-semibold">{{ 'converter.privacyDetails' | t }}</summary>
+          <ul class="mt-3 space-y-2 text-emerald-950 dark:text-emerald-100">
+            <li *ngFor="let bullet of privacyBullets()" class="break-words">{{ bullet }}</li>
+          </ul>
+        </details>
+
+        <div class="mt-4 space-y-3 border-t border-emerald-200 pt-3 dark:border-emerald-900/60">
+          <button
+            class="tool-button tool-button-secondary w-full"
+            type="button"
+            [disabled]="!pwa.serviceWorkerReady() || clearDataBusy()"
+            (click)="prepareOfflineCache()"
+          >
+            <svg lucideHardDriveDownload [size]="16"></svg>
+            <span>{{ 'converter.prepareOffline' | t }}</span>
+          </button>
+          <button
+            *ngIf="pwa.installPromptAvailable()"
+            class="tool-button tool-button-secondary w-full"
+            type="button"
+            [disabled]="clearDataBusy()"
+            (click)="installApp()"
+          >
+            <svg lucideDownload [size]="16"></svg>
+            <span>{{ 'converter.installApp' | t }}</span>
+          </button>
+          <label class="flex min-w-0 items-start gap-3">
+            <input
+              class="mt-1 size-4 shrink-0 accent-emerald-700 dark:accent-emerald-500"
+              type="checkbox"
+              [checked]="clearOfflineCache()"
+              (change)="onClearOfflineCacheChange($event)"
+            />
+            <span class="break-words">{{ 'converter.clearOfflineCache' | t }}</span>
+          </label>
+          <button
+            class="tool-button w-full border-red-200 bg-white text-red-800 hover:bg-red-50 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200 dark:hover:bg-red-950/50"
+            type="button"
+            [disabled]="clearDataBusy()"
+            (click)="clearAppData()"
+          >
+            <svg lucideTrash2 [size]="16"></svg>
+            <span>{{ 'converter.clearAppData' | t }}</span>
+          </button>
+          <p *ngIf="clearDataMessage()" class="break-words text-emerald-950 dark:text-emerald-100">{{ clearDataMessage() }}</p>
+          <p *ngIf="pwa.error()" class="break-words text-amber-800 dark:text-amber-200">
+            <span class="inline-flex items-center gap-1 font-semibold">
+              <svg lucideInfo class="shrink-0" [size]="14"></svg>
+              {{ 'common.status' | t }}
+            </span>
+            {{ pwa.error() }}
+          </p>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>

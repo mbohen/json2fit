@@ -1,0 +1,16 @@
+[project]
+name = "json2fit-converter-python"
+version = "0.1.0"
+description = "Local Python conversion engine for Polar Flow JSON to Garmin TCX."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3.0"
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src/assets/python"]
+testpaths = ["tests/python"]
+addopts = "-q"

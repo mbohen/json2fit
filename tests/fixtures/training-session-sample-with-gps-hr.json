@@ -1,0 +1,37 @@
+{
+  "id": "synthetic-gps-hr-001",
+  "sport": "ROAD_RUNNING",
+  "startTime": "2024-05-02T06:30:00Z",
+  "duration": "PT20M",
+  "distanceMeters": 4100,
+  "calories": 245,
+  "samples": [
+    {
+      "time": "2024-05-02T06:30:00Z",
+      "latitude": 0.001,
+      "longitude": 0.001,
+      "altitudeMeters": 100,
+      "distanceMeters": 0,
+      "heartRate": 120,
+      "cadence": 78
+    },
+    {
+      "time": "2024-05-02T06:40:00Z",
+      "latitude": 0.002,
+      "longitude": 0.002,
+      "altitudeMeters": 104,
+      "distanceMeters": 2050,
+      "heartRate": 146,
+      "cadence": 82
+    },
+    {
+      "time": "2024-05-02T06:50:00Z",
+      "latitude": 0.003,
+      "longitude": 0.003,
+      "altitudeMeters": 108,
+      "distanceMeters": 4100,
+      "heartRate": 155,
+      "cadence": 84
+    }
+  ]
+}
