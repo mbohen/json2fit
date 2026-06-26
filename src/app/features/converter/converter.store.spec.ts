@@ -848,6 +848,150 @@ describe('ConverterStore', () => {
     expect(zip.file('reports/garmin-ready-report.json')).toBeTruthy();
   });
 
+  it('exports ready TCX and FIT activities in the full migration package', async () => {
+    const activity = activityFixture();
+    const inputFile: InputFile = {
+      filename: 'training-session-123.json',
+      jsonText: '{"ok": true}',
+      size: 12,
+      mimeType: 'application/json'
+    };
+    const tcxResult = conversionResultFixture('tcx', activity);
+    const fitResult = conversionResultFixture('fit', activity);
+    const downloads = {
+      downloadBlob: vi.fn()
+    };
+    let store!: ConverterStore;
+    const pyodide = {
+      status: signal('idle'),
+      error: signal(null),
+      convertManyToTcx: vi.fn(async () => [tcxResult]),
+      convertToTcx: vi.fn(),
+      convertManyToFit: vi.fn(async () => {
+        expect(store.allWarnings()).toEqual([]);
+        return [fitResult];
+      }),
+      convertToFit: vi.fn()
+    };
+    store = new ConverterStore({} as never, pyodide as never, downloads as never);
+    store.files.set([inputFile]);
+    store.classifications.set([classificationFixture(inputFile)]);
+
+    await store.exportFullMigrationPackage();
+
+    expect(pyodide.convertManyToTcx).toHaveBeenCalledWith([inputFile]);
+    expect(pyodide.convertManyToFit).toHaveBeenCalledWith([inputFile]);
+    expect(downloads.downloadBlob).toHaveBeenCalledWith(expect.stringMatching(/^polar-to-garmin-export-/), expect.any(Blob));
+    expect(store.migrationExportProgress()).toMatchObject({
+      phase: 'done',
+      totalActivities: 2,
+      processedActivities: 2,
+      successes: 2
+    });
+
+    const zip = await downloadedZip(downloads);
+    expect(zip.file('activities/tcx/2024-05-02_06-30_running_polar-123.tcx')).toBeTruthy();
+    expect(zip.file('activities/fit/2024-05-02_06-30_running_polar-123.fit')).toBeTruthy();
+    expect(zip.file('activities/fit/NOT_AVAILABLE.txt')).toBeNull();
+    expect(await zip.file('reports/import-summary.csv')?.async('string')).toContain('generatedFit,1');
+  });
+
+  it('keeps successful FIT files when batch FIT export falls back to single-file conversion', async () => {
+    const firstFile: InputFile = {
+      filename: 'training-session-123.json',
+      jsonText: '{"ok": true}',
+      size: 12,
+      mimeType: 'application/json'
+    };
+    const secondFile: InputFile = {
+      filename: 'training-session-456.json',
+      jsonText: '{"ok": true}',
+      size: 12,
+      mimeType: 'application/json'
+    };
+    const firstActivity = activityFixture({ sourceFilename: firstFile.filename, activityId: '123' });
+    const secondActivity = activityFixture({ sourceFilename: secondFile.filename, activityId: '456' });
+    const downloads = {
+      downloadBlob: vi.fn()
+    };
+    const pyodide = {
+      status: signal('idle'),
+      error: signal(null),
+      convertManyToTcx: vi.fn(async () => [
+        conversionResultFixture('tcx', firstActivity),
+        conversionResultFixture('tcx', secondActivity)
+      ]),
+      convertToTcx: vi.fn(),
+      convertManyToFit: vi.fn(async () => {
+        throw new Error('batch FIT failed');
+      }),
+      convertToFit: vi.fn(async (file: InputFile) =>
+        conversionResultFixture('fit', file.filename === firstFile.filename ? firstActivity : secondActivity)
+      )
+    };
+    const store = new ConverterStore({} as never, pyodide as never, downloads as never);
+    store.files.set([firstFile, secondFile]);
+    store.classifications.set([
+      classificationFixture(firstFile),
+      {
+        ...classificationFixture(secondFile),
+        activity: secondActivity,
+        garminReady: garminReadyFixture({ path: secondFile.filename, filename: secondFile.filename, activityId: '456' })
+      }
+    ]);
+
+    await store.exportAllReadyGarminBundle();
+
+    expect(pyodide.convertManyToFit).toHaveBeenCalledWith([firstFile, secondFile]);
+    expect(pyodide.convertToFit).toHaveBeenCalledTimes(2);
+    expect(pyodide.convertToFit).toHaveBeenCalledWith(firstFile);
+    expect(pyodide.convertToFit).toHaveBeenCalledWith(secondFile);
+    const zip = await downloadedZip(downloads);
+    expect(zip.file('activities/fit/2024-05-02_06-30_running_polar-123.fit')).toBeTruthy();
+    expect(zip.file('activities/fit/2024-05-02_06-30_running_polar-456.fit')).toBeTruthy();
+    expect(zip.file('activities/fit/NOT_AVAILABLE.txt')).toBeNull();
+    expect(await zip.file('reports/import-summary.csv')?.async('string')).toContain('generatedFit,2');
+  });
+
+  it('adds FIT NOT_AVAILABLE only when every FIT export fails and reports the errors', async () => {
+    const activity = activityFixture();
+    const inputFile: InputFile = {
+      filename: 'training-session-123.json',
+      jsonText: '{"ok": true}',
+      size: 12,
+      mimeType: 'application/json'
+    };
+    const fitErrorResult: ConversionResult = {
+      ...conversionResultFixture('fit', activity),
+      status: 'error',
+      content: new Uint8Array(),
+      errors: ['FIT validation failed']
+    };
+    const downloads = {
+      downloadBlob: vi.fn()
+    };
+    const pyodide = {
+      status: signal('idle'),
+      error: signal(null),
+      convertManyToFit: vi.fn(async () => [fitErrorResult]),
+      convertToFit: vi.fn()
+    };
+    const store = new ConverterStore({} as never, pyodide as never, downloads as never);
+    store.files.set([inputFile]);
+    store.classifications.set([classificationFixture(inputFile)]);
+
+    await store.exportAllReadyFit();
+
+    const zip = await downloadedZip(downloads);
+    expect(zip.file('activities/fit/NOT_AVAILABLE.txt')).toBeTruthy();
+    expect(zip.file('activities/fit/2024-05-02_06-30_running_polar-123.fit')).toBeNull();
+    const skippedFiles = await zip.file('reports/skipped-files.csv')?.async('string');
+    expect(skippedFiles).toContain('training-session-123.json');
+    expect(skippedFiles).toContain('fit');
+    expect(skippedFiles).toContain('FIT validation failed');
+    expect(await zip.file('reports/import-summary.csv')?.async('string')).toContain('generatedFit,0');
+  });
+
   it('copies the selected diagnostic report to the clipboard', async () => {
     const filename = 'training-session-diagnostic.json';
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -967,6 +1111,24 @@ function classificationFixture(file: InputFile): PolarFileClassificationResult {
   };
 }
 
+function conversionResultFixture(format: 'tcx' | 'fit', activity: ActivitySummary): ConversionResult {
+  return {
+    status: 'success',
+    format,
+    filename: `activity.${format}`,
+    mimeType: format === 'tcx' ? 'application/vnd.garmin.tcx+xml' : 'application/vnd.ant.fit',
+    content: format === 'tcx' ? '<TrainingCenterDatabase />' : new Uint8Array([1, 2, 3]),
+    warnings: [],
+    errors: [],
+    activity
+  };
+}
+
+async function downloadedZip(downloads: { downloadBlob: ReturnType<typeof vi.fn> }): Promise<JSZip> {
+  const blob = downloads.downloadBlob.mock.calls[0][1] as Blob;
+  return JSZip.loadAsync(blob);
+}
+
 function activityFixture(overrides: Partial<ActivitySummary> = {}): ActivitySummary {
   return {
     sourceFilename: 'training-session-123.json',
@@ -1061,8 +1223,8 @@ function normalizedActivityFixture(filename: string): NormalizedActivity {
     trackpoints: [
       {
         time: '2024-05-02T06:30:00Z',
-        latitude: 0.001,
-        longitude: 0.001,
+        latitude: 52.2297,
+        longitude: 21.0122,
         altitudeMeters: 100,
         distanceMeters: 0,
         heartRate: 130,
@@ -1073,8 +1235,8 @@ function normalizedActivityFixture(filename: string): NormalizedActivity {
       },
       {
         time: '2024-05-02T06:40:00Z',
-        latitude: 0.003,
-        longitude: 0.003,
+        latitude: 52.236,
+        longitude: 21.028,
         altitudeMeters: 108,
         distanceMeters: 1200,
         heartRate: 155,

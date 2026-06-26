@@ -783,7 +783,7 @@ export class ConverterStore {
     }
 
     const totalExports = files.length * Number(options.includeTcx) + files.length * Number(options.includeFit);
-    const results: ConversionResult[] = [];
+    let results: ConversionResult[] = [];
     this.busy.set(true);
     this.errors.set([]);
     this.migrationExportProgress.set({
@@ -798,28 +798,26 @@ export class ConverterStore {
     this.message.set(this.i18n.t('converter.messages.preparingMigrationZip'));
     try {
       if (options.includeTcx && files.length) {
-        results.push(
-          ...(await this.convertFilesInBatchesWithRecovery(
-            files,
-            'tcx',
-            (batch) => this.pyodide.convertManyToTcx(batch),
-            (file) => this.pyodide.convertToTcx(file),
-            this.i18n.t('converter.exportTcx')
-          ))
+        const tcxResults = await this.convertFilesInBatchesWithRecovery(
+          files,
+          'tcx',
+          (batch) => this.pyodide.convertManyToTcx(batch),
+          (file) => this.pyodide.convertToTcx(file),
+          this.i18n.t('converter.exportTcx')
         );
+        results = [...results, ...tcxResults];
         this.conversionResults.set(results);
       }
 
       if (options.includeFit && files.length) {
-        results.push(
-          ...(await this.convertFilesInBatchesWithRecovery(
-            files,
-            'fit',
-            (batch) => this.pyodide.convertManyToFit(batch),
-            (file) => this.pyodide.convertToFit(file),
-            this.i18n.t('converter.exportFit')
-          ))
+        const fitResults = await this.convertFilesInBatchesWithRecovery(
+          files,
+          'fit',
+          (batch) => this.pyodide.convertManyToFit(batch),
+          (file) => this.pyodide.convertToFit(file),
+          this.i18n.t('converter.exportFit')
         );
+        results = [...results, ...fitResults];
         this.conversionResults.set(results);
       }
 
