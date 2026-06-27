@@ -4,7 +4,14 @@ import { AppDataService } from '@app/core/app-data.service';
 import { I18nService } from '@app/core/i18n/i18n.service';
 import { PwaService } from '@app/core/pwa.service';
 import { supportConfig } from '@shared/product';
-import { ActivitySummary, GarminReadyReportItem, NormalizedActivity, NormalizedActivityResult, WellnessReport } from '@shared/models';
+import {
+  ActivitySummary,
+  GarminReadyReportItem,
+  NormalizedActivity,
+  NormalizedActivityResult,
+  PolarFileClassificationResult,
+  WellnessReport
+} from '@shared/models';
 import { ConverterComponent } from './converter.component';
 import { ConverterStore } from './converter.store';
 
@@ -293,6 +300,68 @@ describe('ConverterComponent', () => {
     expect(panel.textContent).toContain('Ślad GPS lokalny');
     expect(panel.textContent).toContain('Tętno');
     expect(panel.querySelector('[data-testid="activity-route-polyline"]')).toBeTruthy();
+  });
+
+  it('keeps long activity previews in independently scrollable desktop columns and a mobile accordion', async () => {
+    const classifications: PolarFileClassificationResult[] = Array.from({ length: 32 }, (_, index) => {
+      const filename = `training-session-preview-${index + 1}.json`;
+      return {
+        path: filename,
+        filename,
+        sizeBytes: 24,
+        category: 'training_session',
+        confidence: 'high',
+        detectedKeys: ['sport'],
+        kind: 'training_session',
+        status: 'ready',
+        isConvertible: true,
+        reason: 'ready',
+        warnings: [],
+        activity: activityFixture({
+          sourceFilename: filename,
+          sportDetail: index % 2 === 0 ? 'Morning Run' : 'Evening Ride',
+          startTime: `2024-05-${String((index % 28) + 1).padStart(2, '0')}T06:30:00Z`
+        }),
+        garminReady: garminReadyFixture({ path: filename, filename })
+      };
+    });
+    store.classifications.set(classifications);
+
+    fixture.detectChanges();
+
+    const desktopList = fixture.nativeElement.querySelector('[data-testid="activity-preview-list"]') as HTMLElement;
+    const desktopLayout = desktopList.parentElement as HTMLElement;
+    const detailScroll = desktopLayout.querySelector('[data-testid="activity-preview-detail-scroll"]') as HTMLElement;
+    const detail = detailScroll.querySelector('[data-testid="activity-preview-detail"]') as HTMLElement;
+    const mobileList = fixture.nativeElement.querySelector('[data-testid="activity-preview-mobile-list"]') as HTMLElement;
+
+    expect(desktopLayout.className).toContain('h-[calc(100dvh-12rem)]');
+    expect(desktopLayout.className).toContain('max-h-[44rem]');
+    expect(desktopLayout.className).toContain('overflow-hidden');
+    expect(desktopLayout.className).toContain('lg:grid-cols-[240px_minmax(0,1fr)]');
+    expect(desktopLayout.className).toContain('xl:grid-cols-[260px_minmax(0,1fr)]');
+    expect(desktopList.className).toContain('overflow-y-auto');
+    expect(desktopList.className).toContain('overscroll-contain');
+    expect(detailScroll.className).toContain('overflow-y-auto');
+    expect(detailScroll.className).toContain('overscroll-contain');
+    expect(detail.textContent).toContain('Bieganie');
+    expect(mobileList.className).toContain('max-h-[70dvh]');
+    expect(mobileList.className).toContain('overflow-y-auto');
+    expect(mobileList.className).toContain('overscroll-contain');
+
+    const mobileActivityButtons = Array.from(mobileList.querySelectorAll('article > button')) as HTMLButtonElement[];
+    mobileActivityButtons[1].click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(mobileList.querySelector('[data-testid="activity-preview-mobile-detail"]')).toBeTruthy();
+    expect(mobileActivityButtons[1].getAttribute('aria-expanded')).toBe('true');
+
+    mobileActivityButtons[1].click();
+    fixture.detectChanges();
+
+    expect(mobileList.querySelector('[data-testid="activity-preview-mobile-detail"]')).toBeNull();
+    expect(mobileActivityButtons[1].getAttribute('aria-expanded')).toBe('false');
   });
 
   it('localizes activity preview warnings when the interface is in English', async () => {
@@ -774,7 +843,7 @@ describe('ConverterComponent', () => {
   });
 
   it('renders mobile classification cards with export actions', () => {
-    const longFilename = 'synthetic-planned-route-long-filename-for-ui-truncation.json';
+    const longFilename = 'planned-route-49469050-9285397-41a5e13a-eb29-409f-9871-1f2823b0ee54.json';
     store.classifications.set([
       {
         path: longFilename,
@@ -1102,9 +1171,9 @@ function normalizedActivityFixture(filename: string): NormalizedActivity {
     averageHeartRate: 140,
     maxHeartRate: 155,
     trackpoints: [
-      normalizedTrackpointFixture('2024-05-02T06:30:00Z', 0.001, 0.001, 0, 120),
-      normalizedTrackpointFixture('2024-05-02T06:40:00Z', 0.002, 0.002, 2000, 146),
-      normalizedTrackpointFixture('2024-05-02T06:50:00Z', 0.003, 0.003, 4000, 155)
+      normalizedTrackpointFixture('2024-05-02T06:30:00Z', 52.2297, 21.0122, 0, 120),
+      normalizedTrackpointFixture('2024-05-02T06:40:00Z', 52.231, 21.02, 2000, 146),
+      normalizedTrackpointFixture('2024-05-02T06:50:00Z', 52.236, 21.028, 4000, 155)
     ],
     laps: [],
     metadata: {}

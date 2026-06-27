@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Fixed long activity previews so the activity list and details scroll independently on desktop, while the mobile list stays within the viewport.
+
 ## 0.1.1
 
 - Fixed full migration exports so ready TCX and FIT activities are included together, while failed FIT conversions are reported without dropping successful files.

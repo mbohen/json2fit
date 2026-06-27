@@ -603,7 +603,7 @@
         </ng-template>
 
         <ng-container *ngIf="store.activityPreviewCandidates().length; else noActivityPreviewCandidates">
-          <div class="divide-y divide-line lg:hidden" data-testid="activity-preview-mobile-list">
+          <div class="max-h-[70dvh] divide-y divide-line overflow-y-auto overscroll-contain lg:hidden" data-testid="activity-preview-mobile-list">
             <article *ngFor="let item of store.activityPreviewCandidates(); trackBy: trackByActivityPreviewPath" class="min-w-0">
               <button
                 class="flex w-full min-w-0 items-start justify-between gap-3 px-4 py-4 text-left text-sm transition hover:bg-slate-50"
@@ -631,8 +631,13 @@
             </article>
           </div>
 
-          <div class="hidden min-w-0 gap-4 p-4 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-            <div class="min-w-0 space-y-2" data-testid="activity-preview-list">
+          <div
+            class="hidden h-[calc(100dvh-12rem)] max-h-[44rem] min-h-0 min-w-0 gap-4 overflow-hidden p-4 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]"
+          >
+            <div
+              class="min-h-0 min-w-0 space-y-2 overflow-y-auto overscroll-contain pr-2"
+              data-testid="activity-preview-list"
+            >
               <button
                 *ngFor="let item of store.activityPreviewCandidates(); trackBy: trackByActivityPreviewPath"
                 class="w-full min-w-0 rounded-md border px-3 py-3 text-left text-sm transition hover:bg-slate-50"
@@ -652,9 +657,14 @@
               </button>
             </div>
 
-            <ng-container *ngIf="store.selectedActivityCandidate() as selected">
-              <ng-container *ngTemplateOutlet="activityPreviewDetail; context: { selected: selected }"></ng-container>
-            </ng-container>
+            <div
+              class="min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-2"
+              data-testid="activity-preview-detail-scroll"
+            >
+              <ng-container *ngIf="store.selectedActivityCandidate() as selected">
+                <ng-container *ngTemplateOutlet="activityPreviewDetail; context: { selected: selected }"></ng-container>
+              </ng-container>
+            </div>
           </div>
         </ng-container>
 
